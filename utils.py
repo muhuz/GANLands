@@ -43,6 +43,14 @@ def try_gpu(i=0):
         return torch.device(f'cuda:{i}')
     return torch.device('cpu')
 
+def init_weights(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        torch.nn.init.normal(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm2d') != -1:
+        torch.nn.init.normal(m.weight.data, 1.0, 0.02)
+        torch.nn.init.constant(m.bias.data, 0.0)
+
 # if __name__ == "__main__":
 #     dataset = MonetDataset('monet_jpg')
 #     fig = plt.figure()
