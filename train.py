@@ -2,20 +2,23 @@ from itertools import chain
 import torch
 import torch.nn as nn
 
+from data import paired_dataloader
 from models import Generator, Discriminator
-from utils import init_weights
+from utils import init_weights, LossTracker, try_gpu, image_transform
 
 # Parameters
 LEARNING_RATE = 2e-5
 SAVE_STEPS = 25
-BATCH_SIZE = 1
-SHAPE = (1, 1, 30, 30)
-
-loss_names = ['G_A_identity_loss', 'G_B_identity_loss', 'G_A_loss', 'G_B_loss', 'G_A_cycle_loss', 'G_B_cycle_loss']
+BATCH_SIZE = 8
+SHAPE = (BATCH_SIZE, 1, 30, 30)
+PATH_A = './monet_jpg'
+PATH_B = './land_imgs/thumbnail'
+dataloader = paired_dataloader(PATH_A, PATH_B, BATCH_SIZE, transform=image_transform)
+LOSS_NAMES = ['G_A_identity_loss', 'G_B_identity_loss', 'G_A_loss', 'G_B_loss', 'G_A_cycle_loss', 'G_B_cycle_loss']
+EPOCHS = 100
 
 MSE_Loss = nn.MSELoss()
 L1_Loss = nn.L1Loss()
-
 D_real_target = torch.ones(SHAPE, device=try_gpu(), requires_grad=False)
 D_fake_target = torch.zeros(SHAPE, device=try_gpu(), requires_grad=False)
 
@@ -81,7 +84,7 @@ def cycle_update(G_A, G_B, D_A, D_B, A_img, B_img, optimizer):
     total_loss = A_identity_loss + B_identity_loss + fake_B_loss + fake_A_loss + cycle_A_loss + cycle_B_loss
     total_loss.backward()
     optimizer.step()
-    return [A_identity_loss, B_identity_loss, fake_A_loss, fake_B_loss, cycle_A_loss, cycle_B_loss]
+    return [A_identity_loss.item(), B_identity_loss.item(), fake_A_loss.item(), fake_B_loss.item(), cycle_A_loss.item(), cycle_B_loss.item()]
 
 def discriminator_update(D, real_imgs, fake_imgs, optimizer):
     optimizer.zero_grad()
@@ -90,10 +93,14 @@ def discriminator_update(D, real_imgs, fake_imgs, optimizer):
     discriminator_loss = (MSE_Loss(real_output, D_real_target) + MSE_Loss(fake_output, D_fake_target)) * 0.5
     discriminator_loss.backward()
     optimizer.step()
-    return discriminator_loss
+    return discriminator_loss.item()
 
-for e in range(num_epochs):
+tracker = LossTracker(['G_A Loss', 'G_B Loss', 'D_A Loss', 'D_B Loss'], BATCH_SIZE)
+
+for e in range(EPOCHS):
     for A_img, B_img in dataloader:
+        A_img = A_img.to(device=try_gpu())
+        B_img = B_img.to(device=try_gpu())
         # Cycle Update
         cycle_update_losses = cycle_update(G_A, G_B, D_A, D_B, A_img, B_img, adam_cycle)
         
@@ -103,7 +110,15 @@ for e in range(num_epochs):
         fake_B = G_A(A_img).detach()
         D_B_loss = discriminator_update(D_B, B_img, fake_B, adam_D_B)
 
-        # Log Losses
+        # print([cycle_update_losses[2].item(), cycle_update_losses[3].item(), D_A_loss.item(), D_B_loss.item()])
+        tracker.add([cycle_update_losses[2], cycle_update_losses[3], D_A_loss, D_B_loss])
+
+    # Log Losses
+    print('Epoch {} | G_A Loss: {:.2f} | G_B Loss: {:.2f} | D_A Loss: {:.2f} | D_B Loss: {:.2f}'.format(
+        e, *tracker.get_loss())
+    )
+
+    tracker.reset()
     
     if (e+1) % SAVE_STEPS == 0:
         model_dict = {

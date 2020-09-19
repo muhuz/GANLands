@@ -7,30 +7,8 @@ from torch.utils.data import Dataset, DataLoader
 
 MONET_PATH = './monet_jpg'
 
-class MonetDataset(Dataset):
-    def __init__(self, root_dir, transform=None):
-        self.root_dir = root_dir
-        self.transform = transform
-        self.filenames = os.listdir(root_dir)
-    
-    def __len__(self):
-        return len(self.filenames)
-    
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-        
-        img_path = os.path.join(self.root_dir, self.filenames[idx])
-        image = io.imread(img_path)
-        if self.transform:
-            image = self.transform(image)
-        return image
-
-def MonetDataLoader(batch_size, shuffle=True, num_workers=0):
-    return DataLoader(MonetDataset(MONET_PATH, transform=reshape_monet), batch_size=batch_size, num_workers=num_workers)
-
-def reshape_monet(image):
-    return image.reshape(3, 256, 256).astype(float)
+def image_transform(image):
+    return torch.tensor(image.reshape(3, 256, 256), dtype=torch.float)
 
 def view_image(path):
     img = mpimg.imread(path)
@@ -46,10 +24,37 @@ def try_gpu(i=0):
 def init_weights(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
-        torch.nn.init.normal(m.weight.data, 0.0, 0.02)
+        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
     elif classname.find('BatchNorm2d') != -1:
-        torch.nn.init.normal(m.weight.data, 1.0, 0.02)
+        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant(m.bias.data, 0.0)
+
+class LossTracker():
+    def __init__(self, labels, batch_size):
+        self.labels = labels
+        self.loss_history = [[] * len(labels)]
+        self.curr_loss = [0] * len(labels)
+        self.curr_n = 0
+        self.batch_size = batch_size
+    
+    def add(self, losses):
+        assert len(losses) == len(self.labels)
+        for i in range(len(losses)):
+            self.curr_loss[i] += losses[i]
+        self.curr_n += self.batch_size
+    
+    def reset(self):
+        for i in range(len(curr_loss)):
+            self.loss_history[i].append(self.curr_loss[i] / self.curr_n)
+            self.curr_loss[i] = 0
+        self.curr_n = 0
+    
+    def get_loss(self):
+        return self.curr_loss
+
+    def get_history(self):
+        return dict(zip(self.labels, self.loss_history))
+
 
 # if __name__ == "__main__":
 #     dataset = MonetDataset('monet_jpg')

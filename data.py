@@ -1,3 +1,4 @@
+from itertools import cycle
 import os
 from skimage import io
 import torch
@@ -23,14 +24,18 @@ class CustomDataset(Dataset):
         return image
 
 def paired_dataloader(path_A, path_B, batch_size, transform=None, shuffle=True, num_workers=0):
-    dataset_A = CustomDataset(path_A)
-    dataset_B = CustomDataset(path_B)
-    dataloader_A = DataLoader(dataset_A, batch_size=batch_size)
-    dataloader_B = DataLoader(dataset_B, batch_size=batch_size)
+    """
+    Create paired dataloader that cycles the smaller dataset
+    """
+    dataset_A = CustomDataset(path_A, transform=transform)
+    dataset_B = CustomDataset(path_B, transform=transform)
+    if len(dataset_A) > len(dataset_B):
+        dataloader_A = DataLoader(dataset_A, batch_size=batch_size, shuffle=shuffle)
+        dataloader_B = cycle(DataLoader(dataset_B, batch_size=batch_size, shuffle=shuffle))
+    else:
+        dataloader_A = cycle(DataLoader(dataset_A, batch_size=batch_size, shuffle=shuffle))
+        dataloader_B = DataLoader(dataset_B, batch_size=batch_size, shuffle=shuffle)
     return zip(dataloader_A, dataloader_B)
-
-def reshape_monet(image):
-    return image.reshape(3, 256, 256).astype(float)
 
 if __name__ == "__main__":
     monet_data = './monet_jpg'
