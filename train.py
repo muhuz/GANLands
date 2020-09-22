@@ -4,9 +4,9 @@ import torch
 import torch.nn as nn
 from torchvision import transforms
 
-from data import paired_dataloader
+from data import paired_dataloader, custom_dataloader
 from models import Generator, Discriminator
-from utils import init_weights, LossTracker, try_gpu, image_transform, denormalize_image, save_image
+from utils import init_weights, LossTracker, try_gpu, image_transform, denormalize_image, save_image, ImageBuffer
 
 # Parameters
 LEARNING_RATE = 2e-5
@@ -27,9 +27,11 @@ image_transforms = [transforms.RandomHorizontalFlip(),
               transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))]
 
 GAN_IMG_PATH = './gan_imgs'
+EPOCH_IMG_PATH = './epoch_imgs' # list of images to run and save after each epoch
 PATH_A = './monet_jpg'
 PATH_B = './land_imgs/thumbnail'
 dataloader = paired_dataloader(PATH_A, PATH_B, BATCH_SIZE, transforms_=image_transforms)
+epoch_dataloader = custom_dataloader(EPOCH_IMG_PATH, BATCH_SIZE, transforms_=image_transforms)
 
 # Create computation graphs for Models
 # G_A is Generator that maps from A domain to B domain
@@ -105,6 +107,8 @@ def discriminator_update(D, real_imgs, fake_imgs, optimizer):
     return discriminator_loss.item()
 
 tracker = LossTracker(['G_A Loss', 'G_B Loss', 'D_A Loss', 'D_B Loss'], BATCH_SIZE)
+A_buffer = ImageBuffer(50)
+B_buffer = ImageBuffer(50)
 
 for e in range(EPOCHS):
     count = 0
@@ -116,23 +120,25 @@ for e in range(EPOCHS):
         cycle_update_losses = cycle_update(G_A, G_B, D_A, D_B, A_img, B_img, adam_cycle)
         
         # Create Fake Image to update Discriminator
-        fake_A = G_B(B_img).detach()
+        fake_A = A_buffer.query(G_B(B_img).detach())
         D_A_loss = discriminator_update(D_A, A_img, fake_A, adam_D_A)
-        fake_B = G_A(A_img).detach()
+        fake_B = B_buffer.query(G_A(A_img).detach())
         D_B_loss = discriminator_update(D_B, B_img, fake_B, adam_D_B)
 
         # print([cycle_update_losses[2].item(), cycle_update_losses[3].item(), D_A_loss.item(), D_B_loss.item()])
         tracker.add([cycle_update_losses[2], cycle_update_losses[3], D_A_loss, D_B_loss])
-        count += 1
-        if count % 100 == 0:
-            save_image(denormalize_image(fake_B), os.path.join(GAN_IMG_PATH, B_filename))
+            # save_image(denormalize_image(fake_B), os.path.join(GAN_IMG_PATH, B_filename))
 
     # Log Losses
     print('Epoch {} | G_A Loss: {:.2f} | G_B Loss: {:.2f} | D_A Loss: {:.2f} | D_B Loss: {:.2f}'.format(
-        e, *tracker.get_loss())
-    )
-
+        e, *tracker.get_loss()))
     tracker.reset()
+
+    for (filename, img) in epoch_dataloader:
+        name = 'epoch_{}|'.format(e) + filename[0]
+        with torch.no_grad():
+            generated_img = G_B(img)
+            save_image(denormalize_image(generated_img), os.path.join(GAN_IMG_PATH, name))
     
     if (e+1) % SAVE_STEPS == 0:
         model_dict = {
