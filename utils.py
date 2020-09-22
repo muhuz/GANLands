@@ -3,6 +3,7 @@ import matplotlib.image as mpimg
 import numpy as np
 import os
 from PIL import Image
+import random
 from skimage import io
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -71,3 +72,33 @@ class LossTracker():
 
     def get_history(self):
         return dict(zip(self.labels, self.loss_history))
+
+class ImageBuffer():
+    """
+    Update Discriminator network using image buffer rather than
+    current Generator output to reduce model ocillation 
+    """
+
+    def __init__(self, buffer_size):
+        self.buffer_size = buffer_size
+        self.images = []
+
+    def query(self, imgs):
+        return_images = []
+        for img in imgs:
+            img = torch.unsqueeze(img, 0)
+            if len(self.images) < self.buffer_size:
+                self.images.append(img)
+                self.return_images.append(img)
+            else:
+                p = random.uniform(0, 1)
+                if p > 0.5: # return random image from buffer and replace with new image
+                    idx = random.randint(0, self.buffer_size - 1)
+                    rand_buffer_img = self.images[idx].clone()
+                    self.images[idx] = img
+                    return_images.append(rand_buffer_img)
+                else: # return input image
+                    return_images.append(img)
+        return_images = torch.cat(return_images, 0)   # collect all the images and return
+        return return_images
+                    
