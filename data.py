@@ -6,27 +6,27 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
-# class CustomDataset(Dataset):
-#     def __init__(self, root_dir, transforms_=None):
-#         self.root_dir = root_dir
-#         if isinstance(transforms_, list):
-#             self.transform = transforms.Compose(transforms_)
-#         else:
-#             self.transform = transforms_
-#         self.filenames = os.listdir(root_dir)
+class CustomDataset(Dataset):
+    def __init__(self, root_dir, transforms_=None):
+        self.root_dir = root_dir
+        if isinstance(transforms_, list):
+            self.transform = transforms.Compose(transforms_)
+        else:
+            self.transform = transforms_
+        self.filenames = os.listdir(root_dir)
     
-#     def __len__(self):
-#         return len(self.filenames)
+    def __len__(self):
+        return len(self.filenames)
     
-#     def __getitem__(self, idx):
-#         if torch.is_tensor(idx):
-#             idx = idx.tolist()
-#         filename = self.filenames[idx]
-#         img_path = os.path.join(self.root_dir, filename)
-#         image = Image.open(img_path)
-#         if self.transform:
-#             image = self.transform(image)
-#         return filename, image
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        filename = self.filenames[idx]
+        img_path = os.path.join(self.root_dir, filename)
+        image = Image.open(img_path)
+        if self.transform:
+            image = self.transform(image)
+        return filename, image
 
 class PairedDataset(Dataset):
     def __init__(self, A_root_dir, B_root_dir, transforms_=None):
@@ -56,6 +56,10 @@ class PairedDataset(Dataset):
 
 def paired_dataloader(A_root_dir, B_root_dir, batch_size, transforms_=None, shuffle=True, num_workers=0):
     dataset = PairedDataset(A_root_dir, B_root_dir, transforms_=transforms_)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+def custom_dataloader(root_dir, batch_size, transforms_=None, shuffle=True, num_workers=0):
+    dataset = CustomDataset(root_dir, transforms_=transforms_)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
 # def paired_dataloader(path_A, path_B, batch_size, transforms_=None, shuffle=True, num_workers=0):
