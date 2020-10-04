@@ -1,4 +1,3 @@
-from itertools import cycle
 import os
 from PIL import Image
 import random
@@ -61,17 +60,3 @@ def paired_dataloader(A_root_dir, B_root_dir, batch_size, transforms_=None, shuf
 def custom_dataloader(root_dir, batch_size, transforms_=None, shuffle=True, num_workers=0):
     dataset = CustomDataset(root_dir, transforms_=transforms_)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
-
-if __name__ == "__main__":
-    monet_data = './monet_jpg'
-    land_data = './land_imgs/thumbnail'
-    names = os.listdir(monet_data)
-    img = Image.open(os.path.join(monet_data, names[0]))
-    dataset = PairedDataset(monet_data, land_data)
-    dataloader = paired_dataloader(monet_data, land_data, 1, transforms_=transforms.ToTensor())
-    for e in range(2):
-        counter = 0
-        for i, (A_filename, A_img, B_filename, B_img) in enumerate(dataloader):
-            print(A_img)
-            counter += 1
-            break
