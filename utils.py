@@ -4,7 +4,6 @@ import numpy as np
 import os
 from PIL import Image
 import random
-from skimage import io
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
@@ -89,7 +88,7 @@ class ImageBuffer():
             img = torch.unsqueeze(img, 0)
             if len(self.images) < self.buffer_size:
                 self.images.append(img)
-                self.return_images.append(img)
+                return_images.append(img)
             else:
                 p = random.uniform(0, 1)
                 if p > 0.5: # return random image from buffer and replace with new image

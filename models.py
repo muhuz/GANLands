@@ -51,7 +51,7 @@ class Generator(nn.Module):
         # ResNet Block Layers
 
         # Shape: (256, 64, 64)
-        layers += [ResBlock(256) for _ in range(6)]
+        layers += [ResBlock(256) for _ in range(9)]
 
         # Upsampling Layers
 

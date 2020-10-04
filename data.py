@@ -62,20 +62,6 @@ def custom_dataloader(root_dir, batch_size, transforms_=None, shuffle=True, num_
     dataset = CustomDataset(root_dir, transforms_=transforms_)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
-# def paired_dataloader(path_A, path_B, batch_size, transforms_=None, shuffle=True, num_workers=0):
-#     """
-#     Create paired dataloader that cycles the smaller dataset
-#     """
-#     dataset_A = CustomDataset(path_A, transforms_=transforms_)
-#     dataset_B = CustomDataset(path_B, transforms_=transforms_)
-#     if len(dataset_A) > len(dataset_B):
-#         dataloader_A = DataLoader(dataset_A, batch_size=batch_size, shuffle=shuffle)
-#         dataloader_B = cycle(DataLoader(dataset_B, batch_size=batch_size, shuffle=shuffle))
-#     else:
-#         dataloader_A = cycle(DataLoader(dataset_A, batch_size=batch_size, shuffle=shuffle))
-#         dataloader_B = DataLoader(dataset_B, batch_size=batch_size, shuffle=shuffle)
-#     return zip(dataloader_A, dataloader_B)
-
 if __name__ == "__main__":
     monet_data = './monet_jpg'
     land_data = './land_imgs/thumbnail'
