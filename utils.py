@@ -27,11 +27,6 @@ def save_image(array, path):
     img = Image.fromarray(array.transpose(1, 2, 0), 'RGB')
     img.save(path)
 
-def view_image(path):
-    img = mpimg.imread(path)
-    plt.imshow(img)
-    plt.show()
-
 def try_gpu(i=0):
     """Return gpu(i) if exists, otherwise return cpu()."""
     if torch.cuda.device_count() >= i + 1:
